@@ -73,12 +73,12 @@ document.querySelectorAll('.service-card').forEach(card => {
 const toolsGrid = document.getElementById('toolsGrid');
 
 if (toolsGrid) {
-    // Base paths to check for numbered images (prioritize most common)
-    const TOOL_IMAGE_BASE_PATHS = ['tools', 'images', '', 'img'];
+    // Base paths to check for numbered images (check root first, then common folders)
+    const TOOL_IMAGE_BASE_PATHS = ['', 'tools', 'images', 'img', 'assets'];
     const MAX_TOOL_IMAGES = 50000; // checks 1..50000
-    const EXTENSIONS = ['jpeg', 'jpg', 'png', 'JPEG', 'JPG', 'PNG'];
-    // Track prices already shown so each price/image is only plotted once
-    const addedPrices = new Set();
+    const EXTENSIONS = ['jpeg', 'jpg', 'png', 'JPEG', 'JPG', 'PNG', 'webp', 'WEBP'];
+    // Track image paths already shown to avoid duplicates (same file in multiple folders)
+    const addedImagePaths = new Set();
     const CONCURRENT_LIMIT = 50; // batch size for faster loading
 
     // Extract price number from filename (handles "30_2.jpeg" -> "30")
@@ -90,12 +90,12 @@ if (toolsGrid) {
     };
 
     const createToolCard = (imgPath) => {
+        // Skip if this exact image path was already added (prevents duplicates from multiple folders)
+        if (addedImagePaths.has(imgPath)) return;
+        addedImagePaths.add(imgPath);
+
         const fileName = imgPath.split('/').pop() || '';
         const priceNumber = extractPrice(fileName);
-
-        // Skip if this price already has a card (avoids duplicates like jpg + jpeg for same number)
-        if (addedPrices.has(priceNumber)) return;
-        addedPrices.add(priceNumber);
 
         const card = document.createElement('div');
         card.className = 'tool-card';
@@ -163,12 +163,18 @@ if (toolsGrid) {
 
     // Process in batches to avoid overwhelming the browser
     (async () => {
+        console.log('Starting to load tool images...');
+        let loadedCount = 0;
         for (let start = 1; start <= MAX_TOOL_IMAGES; start += CONCURRENT_LIMIT) {
             const end = Math.min(start + CONCURRENT_LIMIT - 1, MAX_TOOL_IMAGES);
+            const beforeCount = addedImagePaths.size;
             await loadBatch(start, end);
+            const afterCount = addedImagePaths.size;
+            loadedCount += (afterCount - beforeCount);
             // Small delay to keep UI responsive
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise(resolve => setTimeout(resolve, 5));
         }
+        console.log(`Loaded ${loadedCount} tool images`);
     })();
 }
 
